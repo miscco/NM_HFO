@@ -28,49 +28,20 @@
  */
 
 /****************************************************************************************************/
-/*		Main file for compilation tests																*/
+/*									Functions for data storage										*/
 /****************************************************************************************************/
-#include <iostream>
-#include <chrono>
-#include "Data_Storage.h"
-#include "ODE.h"
+#pragma once
+#include "CA3_Column.h"
+#include "Cortical_Column.h"
 
 /****************************************************************************************************/
-/*										Fixed simulation settings									*/
+/*											Save data												*/
 /****************************************************************************************************/
-typedef std::chrono::high_resolution_clock::time_point timer;
-extern const int T 		= 30;
-extern const int res 	= 1E4;
-extern const double dt 	= 1E3/res;
-/****************************************************************************************************/
-/*										 		end			 										*/
-/****************************************************************************************************/
-
-
-/****************************************************************************************************/
-/*										Main simulation routine										*/
-/****************************************************************************************************/
-int main(void) {
-	/* Initialize the populations */
-	Cortical_Column C;
-	CA3_Column H;
-
-	/* Take the time of the simulation */
-	timer start,end;
-
-	/* Simulation */
-	start = std::chrono::high_resolution_clock::now();
-	for (int t=0; t< T*res; ++t) {
-		ODE (C, H);
-	}
-	end = std::chrono::high_resolution_clock::now();
-
-	/* Time consumed by the simulation */
-	double dif = 1E-3*std::chrono::duration_cast<std::chrono::milliseconds>( end - start ).count();
-	std::cout << "simulation done!\n";
-	std::cout << "took " << dif 	<< " seconds" << "\n";
-	std::cout << "end\n";
+inline void get_data(int counter, Cortical_Column& C,  CA3_Column& CA3, 
+					 double* V_C, double* V_H, double * Y_H) {
+	C.get_data(counter, V_C);
+	CA3.get_data(counter, V_H, Y_H);
 }
 /****************************************************************************************************/
-/*										 		end			 										*/
+/*										 		end													*/
 /****************************************************************************************************/

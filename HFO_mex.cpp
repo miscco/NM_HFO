@@ -22,55 +22,93 @@
  *	AUTHORS:	Michael Schellenberger Costa: mschellenbergercosta@gmail.com
  *
  *	Based on:	Computational modeling of high-frequency oscillations at the onset of neocortical
- *				partial seizures: From 'altered structure' to 'dysfunction'
+ *				partial seizures: From 'altered structure' to 'dysfunction'.
  *				B Molaee-Ardekani, P Benquet, F Bartolomei, F Wendling.
  *				NeuroImage 52(3):1109-1122 (2010)
  */
 
 /****************************************************************************************************/
-/*		Main file for compilation tests																*/
+/* 		Implementation of the simulation as MATLAB routine (mex compiler)							*/
+/* 		mex command is given by:																	*/
+/* 		mex CXXFLAGS="\$CXXFLAGS -std=c++11 -O3" HFO_mex.cpp CA3_Column.cpp Cortical_Column.cpp     */
 /****************************************************************************************************/
-#include <iostream>
-#include <chrono>
+#include "mex.h"
+#include "matrix.h"
 #include "Data_Storage.h"
 #include "ODE.h"
+mxArray* SetMexArray(int N, int M);
 
 /****************************************************************************************************/
 /*										Fixed simulation settings									*/
 /****************************************************************************************************/
-typedef std::chrono::high_resolution_clock::time_point timer;
-extern const int T 		= 30;
-extern const int res 	= 1E4;
-extern const double dt 	= 1E3/res;
+extern const int onset	= 10;								/* time until data is stored in  s		*/
+extern const int res 	= 1E4;								/* number of iteration steps per s		*/
+extern const double dt 	= 1E3/res;							/* duration of a timestep in ms			*/
 /****************************************************************************************************/
 /*										 		end			 										*/
 /****************************************************************************************************/
 
 
 /****************************************************************************************************/
-/*										Main simulation routine										*/
+/*										Simulation routine	 										*/
+/*										lhs defines outputs											*/
+/*										rhs defines inputs											*/
 /****************************************************************************************************/
-int main(void) {
-	/* Initialize the populations */
-	Cortical_Column C;
-	CA3_Column H;
+void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]) {
+	/* Initialize the seeder */
+	srand(time(NULL));
 
-	/* Take the time of the simulation */
-	timer start,end;
+	/* Fetch inputs */
+	const int T				= (int) (mxGetScalar(prhs[0]));	/* Duration of simulation in s			*/
+	const int Time 			= (T+onset)*res;				/* Total number of iteration steps		*/
+	double* Param_C         = mxGetPr (prhs[1]);			/* Parameters of C module				*/
+	double* Param_H         = mxGetPr (prhs[2]);			/* Parameters of H module				*/
+
+	/* Initialize the populations */
+	C_Column Cortex;
+	H_Column HFO;
+
+	/* Create data containers */
+	mxArray* V_C		= SetMexArray(1, T*res);
+	mxArray* V_H		= SetMexArray(1, T*res);
+	mxArray* Y_H		= SetMexArray(1, T*res);
+
+	/* Pointer to the actual data block */
+	double* Pr_V_C	= mxGetPr(V_C);
+	double* Pr_V_H	= mxGetPr(V_H);
+	double* Pr_Y_H	= mxGetPr(Y_H);
 
 	/* Simulation */
-	start = std::chrono::high_resolution_clock::now();
-	for (int t=0; t< T*res; ++t) {
-		ODE (C, H);
+	int count = 0;
+	for (int t=0; t<Time; ++t) {
+		ODE (Cortex, HFO);
+		if(t>=onset*res){
+			get_data(count, Cortex, HFO, Pr_V_C, Pr_V_H, Pr_Y_H);
+			++count;
+		}
 	}
-	end = std::chrono::high_resolution_clock::now();
 
-	/* Time consumed by the simulation */
-	double dif = 1E-3*std::chrono::duration_cast<std::chrono::milliseconds>( end - start ).count();
-	std::cout << "simulation done!\n";
-	std::cout << "took " << dif 	<< " seconds" << "\n";
-	std::cout << "end\n";
+	/* Output of the simulation */
+	plhs[0] = V_C;
+	plhs[1] = V_H;
+	plhs[2] = Y_H;
+return;
 }
 /****************************************************************************************************/
-/*										 		end			 										*/
+/*												end													*/
+/****************************************************************************************************/
+
+
+/****************************************************************************************************/
+/*									Create MATLAB data container									*/
+/****************************************************************************************************/
+mxArray* SetMexArray(int N, int M) {
+	mxArray* Array	= mxCreateDoubleMatrix(0, 0, mxREAL);
+	mxSetM(Array, N);
+	mxSetN(Array, M);
+	mxSetData(Array, mxMalloc(sizeof(double)*M*N));
+	return Array;
+}
+/****************************************************************************************************/
+/*										 		end													*/
 /****************************************************************************************************/
